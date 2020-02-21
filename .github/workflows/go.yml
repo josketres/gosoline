@@ -27,7 +27,9 @@ jobs:
 
       - name: Integration tests
         run: |
-          sudo sysctl -p
+          # debug docker masquerading
+          sudo iptables -t nat -L -n
+
           go test -p 1 --tags=integration  ./test/component_sns_sqs_test.go
           go test -p 1 --tags=integration  ./test/component_sns_sqs_test.go
           go test -p 1 --tags=integration  ./test/component_sns_sqs_test.go
