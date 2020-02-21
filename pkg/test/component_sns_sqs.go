@@ -19,13 +19,62 @@ type snsSqsConfig struct {
 	SqsPort int    `mapstructure:"sqs_port"`
 }
 
-var snsClients map[string]*sns.SNS
 var snsSqsConfigs map[string]*snsSqsConfig
-var snsLck sync.Mutex
+
+var (
+	snsClients map[string]*sns.SNS
+	snsLck     sync.Mutex
+)
+
+var (
+	sqsClients map[string]*sqs.SQS
+	sqsLck     sync.Mutex
+)
 
 func init() {
 	snsSqsConfigs = map[string]*snsSqsConfig{}
 	snsClients = map[string]*sns.SNS{}
+	sqsClients = map[string]*sqs.SQS{}
+}
+
+func ProvideSnsClient(name string) *sns.SNS {
+	snsLck.Lock()
+	defer snsLck.Unlock()
+
+	_, ok := snsClients[name]
+	if ok {
+		return snsClients[name]
+	}
+
+	sess, err := getSession(snsSqsConfigs[name].Host, snsSqsConfigs[name].SnsPort)
+
+	if err != nil {
+		logErr(err, "could not create sns client: %s")
+	}
+
+	snsClients[name] = sns.New(sess)
+
+	return snsClients[name]
+}
+
+func ProvideSqsClient(name string) *sqs.SQS {
+	sqsLck.Lock()
+	defer sqsLck.Unlock()
+
+	_, ok := sqsClients[name]
+	if ok {
+		return sqsClients[name]
+	}
+
+	sess, err := getSession(snsSqsConfigs[name].Host, snsSqsConfigs[name].SqsPort)
+
+	if err != nil {
+		logErr(err, "could not create sqs client: %s")
+	}
+
+	sqsClients[name] = sqs.New(sess)
+
+	return sqsClients[name]
 }
 
 func onDestroy() {
@@ -55,7 +104,7 @@ func doRunSnsSqs(name string, configMap configInput) {
 	runContainer("gosoline_test_sns_sqs", ContainerConfig{
 		Repository: "localstack/localstack",
 		Tag:        "0.10.7",
-		Env:        []string{services, "DEBUG=1"},
+		Env:        []string{services},
 		PortBindings: PortBinding{
 			"4575/tcp": fmt.Sprint(localConfig.SnsPort),
 			"4576/tcp": fmt.Sprint(localConfig.SqsPort),
@@ -72,7 +121,7 @@ func doRunSnsSqs(name string, configMap configInput) {
 
 	address := c.NetworkSettings.Networks["bridge"].IPAddress
 
-	fmt.Println("using address", address)
+	fmt.Println("using container address", address)
 
 	localConfig.Host = address
 }

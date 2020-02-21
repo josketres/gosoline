@@ -5,7 +5,6 @@ import (
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
 	"log"
-	"os"
 )
 
 type PortBinding map[string]string
@@ -59,25 +58,9 @@ func runContainer(name string, config ContainerConfig) {
 	err = dockerPool.Retry(config.HealthCheck)
 
 	if err != nil {
-		printLogs(resource)
 		logErr(err, fmt.Sprintf("could not bring up %s container", name))
 	}
 
 	dockerResources = append(dockerResources, resource)
 	configs = append(configs, &config)
-}
-
-func printLogs(resource *dockertest.Resource) {
-	err := dockerPool.Client.Logs(docker.LogsOptions{
-		Container:    resource.Container.ID,
-		OutputStream: os.Stdout,
-		ErrorStream:  os.Stderr,
-		Stdout:       true,
-		Stderr:       true,
-	})
-
-	if err != nil {
-		logErr(err, fmt.Sprintf("could not print docker logs for container: %s", resource.Container.Name))
-	}
-
 }
