@@ -77,17 +77,13 @@ func doRunSnsSqs(name string, configMap configInput) {
 func snsSqsHealthcheck(name string) func() error {
 	return func() error {
 
-		c, _ := dockerPool.Client.InspectContainer("gosoline_test_sns_sqs")
-
-		bridgeNetwork := c.NetworkSettings.Networks["bridge"]
-		log.Println("Gateway", bridgeNetwork.Gateway)
-		log.Println("IPAddress", bridgeNetwork.IPAddress)
-
 		err := snsHealthcheck(name)
 
 		if err != nil {
 			return err
 		}
+
+		log.Println("sns healthy")
 
 		err = sqsHealthcheck(name)
 
@@ -95,11 +91,15 @@ func snsSqsHealthcheck(name string) func() error {
 			return err
 		}
 
+		log.Println("sqs healthy")
+
 		err = subscriptionHealthcheck(name)
 
 		if err != nil {
 			return err
 		}
+
+		log.Println("sns + sqs healthy")
 
 		return nil
 	}
@@ -147,7 +147,7 @@ func subscriptionHealthcheck(name string) error {
 
 	_, err = snsClient.Subscribe(&sns.SubscribeInput{
 		Protocol: aws.String("sqs"),
-		Endpoint: aws.String(fmt.Sprintf("http://localhost:4576/queue/%s", queueName)),
+		Endpoint: queue.QueueUrl,
 		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName)),
 	})
 
