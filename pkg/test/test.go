@@ -88,6 +88,7 @@ func bootComponent(mockConfig configInput) {
 
 func Shutdown() {
 	for _, res := range dockerResources {
+		printLogs(res)
 		if err := dockerPool.Purge(res); err != nil {
 			log.Fatalf("Could not purge resource: %s", err)
 		}
