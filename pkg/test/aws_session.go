@@ -36,7 +36,7 @@ func createNewSession(endpoint string) interface{} {
 		Region:                        aws.String(endpoints.EuCentral1RegionID),
 		Endpoint:                      aws.String(endpoint),
 		HTTPClient:                    httpClient,
-		LogLevel:                      aws.LogLevel(aws.LogDebug | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors | aws.LogDebugWithHTTPBody),
+		LogLevel:                      aws.LogLevel(aws.LogDebug | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors),
 	}
 
 	newSession, err := session.NewSession(config)
