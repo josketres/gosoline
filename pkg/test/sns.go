@@ -27,48 +27,46 @@ func ProvideSnsClient(name string) *sns.SNS {
 	return snsClients[name]
 }
 
-func snsHealthcheck(name string) func() error {
-	return func() error {
-		snsClient := ProvideSnsClient(name)
-		topicName := "healthcheck"
+func snsHealthcheck(name string) error {
+	snsClient := ProvideSnsClient(name)
+	topicName := "healthcheck"
 
-		topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
-			Name: mdl.String(topicName),
-		})
+	topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
+		Name: mdl.String(topicName),
+	})
 
-		if err != nil {
-			return err
-		}
+	if err != nil {
+		return err
+	}
 
+	listTopics, err := snsClient.ListTopics(&sns.ListTopicsInput{})
+
+	if err != nil {
+		return err
+	}
+
+	if len(listTopics.Topics) != 1 {
+		return fmt.Errorf("topic list should contain exactly 1 entry, but contained %d", len(listTopics.Topics))
+	}
+
+	_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.TopicArn})
+
+	if err != nil {
+		return err
+	}
+
+	// wait for topic to be really deleted (race condition)
+	for {
 		listTopics, err := snsClient.ListTopics(&sns.ListTopicsInput{})
 
 		if err != nil {
 			return err
 		}
 
-		if len(listTopics.Topics) != 1 {
-			return fmt.Errorf("topic list should contain exactly 1 entry, but contained %d", len(listTopics.Topics))
+		if len(listTopics.Topics) == 0 {
+			return nil
 		}
 
-		_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.TopicArn})
-
-		if err != nil {
-			return err
-		}
-
-		// wait for topic to be really deleted (race condition)
-		for {
-			listTopics, err := snsClient.ListTopics(&sns.ListTopicsInput{})
-
-			if err != nil {
-				return err
-			}
-
-			if len(listTopics.Topics) == 0 {
-				return nil
-			}
-
-			time.Sleep(50 * time.Millisecond)
-		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }

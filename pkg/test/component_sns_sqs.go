@@ -2,6 +2,8 @@ package test
 
 import (
 	"fmt"
+	"github.com/applike/gosoline/pkg/mdl"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/ory/dockertest/docker"
@@ -77,14 +79,81 @@ func snsSqsHealthcheck(name string) func() error {
 
 		c, _ := dockerPool.Client.InspectContainer("gosoline_test_sns_sqs")
 
-		log.Println("networks: ", funk.Keys(c.NetworkSettings.Networks))
+		bridgeNetwork := c.NetworkSettings.Networks["bridge"]
+		log.Println("Gateway", bridgeNetwork.Gateway)
+		log.Println("IPAddress", bridgeNetwork.IPAddress)
 
-		err := snsHealthcheck(name)()
+		err := snsHealthcheck(name)
 
 		if err != nil {
 			return err
 		}
 
-		return sqsHealthcheck(name)()
+		err = sqsHealthcheck(name)
+
+		if err != nil {
+			return err
+		}
+
+		err = subscriptionHealthcheck(name)
+
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
+}
+
+func subscriptionHealthcheck(name string) error {
+	var (
+		snsClient = ProvideSnsClient(name)
+		sqsClient = ProvideSqsClient(name)
+		queueName = "healthcheck"
+		topicName = "healthcheck"
+	)
+
+	topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
+		Name: mdl.String(topicName),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.TopicArn})
+
+		if err != nil {
+			logErr(err, "could not delete healthcheck topic")
+		}
+	}()
+
+	queue, err := sqsClient.CreateQueue(&sqs.CreateQueueInput{
+		QueueName: mdl.String(queueName),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_, err = sqsClient.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: queue.QueueUrl})
+
+		if err != nil {
+			logErr(err, "could not delete healthcheck queue")
+		}
+	}()
+
+	_, err = snsClient.Subscribe(&sns.SubscribeInput{
+		Protocol: aws.String("sqs"),
+		Endpoint: aws.String(fmt.Sprintf("http://localhost:4576/queue/%s", queueName)),
+		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName)),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
