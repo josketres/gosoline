@@ -9,12 +9,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
 	"time"
 )
 
 func Test_sns_sqs(t *testing.T) {
-	setup(t)
+	err := os.Setenv("AWS_ACCESS_KEY_ID", "a")
+	assert.NoError(t, err)
+
+	err = os.Setenv("AWS_SECRET_ACCESS_KEY", "b")
+	assert.NoError(t, err)
 
 	pkgTest.Boot("test_configs/config.sns_sqs.test.yml")
 	defer pkgTest.Shutdown()
