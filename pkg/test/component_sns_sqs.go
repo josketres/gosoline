@@ -1,14 +1,14 @@
 package test
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
-	"github.com/applike/gosoline/pkg/mdl"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/ory/dockertest/docker"
-	"github.com/thoas/go-funk"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -62,114 +62,34 @@ func doRunSnsSqs(name string, configMap configInput) {
 			"4575/tcp": fmt.Sprint(localConfig.SnsPort),
 			"4576/tcp": fmt.Sprint(localConfig.SqsPort),
 		},
-		HealthCheck: snsSqsHealthcheck(name),
+		HealthCheck: snsSqsHealthcheck,
 		OnDestroy:   onDestroy,
 	})
 
-	c, _ := dockerPool.Client.InspectContainer("gosoline_test_sns_sqs")
-
-	funk.ForEach(c.NetworkSettings.Networks, func(_ string, elem docker.ContainerNetwork) {
-		localConfig.Host = elem.IPAddress
-		log.Println(fmt.Sprintf("set Host to %s", localConfig.Host))
-	})
 }
 
-func snsSqsHealthcheck(name string) func() error {
-	return func() error {
+func snsSqsHealthcheck() error {
+	logs := bytes.NewBufferString("")
 
-		err := snsHealthcheck(name)
-
-		if err != nil {
-			return err
-		}
-
-		log.Println("sns healthy")
-
-		err = sqsHealthcheck(name)
-
-		if err != nil {
-			return err
-		}
-
-		log.Println("sqs healthy")
-
-		err = subscribePublishReceiveHealthcheck(name)
-
-		if err != nil {
-			return err
-		}
-
-		log.Println("sns + sqs healthy")
-
-		return nil
-	}
-}
-
-func subscribePublishReceiveHealthcheck(name string) error {
-	var (
-		snsClient = ProvideSnsClient(name)
-		sqsClient = ProvideSqsClient(name)
-		queueName = "healthcheck"
-		topicName = "healthcheck"
-	)
-
-	topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
-		Name: mdl.String(topicName),
+	err := dockerPool.Client.Logs(docker.LogsOptions{
+		Container:    "gosoline_test_sns_sqs",
+		OutputStream: logs,
+		Stdout:       true,
+		Stderr:       true,
 	})
 
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		_, err = snsClient.DeleteTopic(&sns.DeleteTopicInput{TopicArn: topic.TopicArn})
-
-		if err != nil {
-			logErr(err, "could not delete healthcheck topic")
-		}
-	}()
-
-	queue, err := sqsClient.CreateQueue(&sqs.CreateQueueInput{
-		QueueName: mdl.String(queueName),
-	})
+	ready, err := regexp.MatchString("Ready\\.", logs.String())
 
 	if err != nil {
 		return err
 	}
 
-	defer func() {
-		_, err = sqsClient.DeleteQueue(&sqs.DeleteQueueInput{QueueUrl: queue.QueueUrl})
-
-		if err != nil {
-			logErr(err, "could not delete healthcheck queue")
-		}
-	}()
-
-	_, err = snsClient.Subscribe(&sns.SubscribeInput{
-		Protocol: aws.String("sqs"),
-		Endpoint: queue.QueueUrl,
-		TopicArn: topic.TopicArn,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	_, err = snsClient.Publish(&sns.PublishInput{
-		Message:  aws.String("checking health"),
-		TopicArn: topic.TopicArn,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	_, err = sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
-		QueueUrl: queue.QueueUrl,
-	})
-
-	if err != nil {
-		return err
+	if !ready {
+		return errors.New("localstack services not ready yet")
 	}
 
 	return nil
