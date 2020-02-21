@@ -92,8 +92,10 @@ func Test_sns_sqs(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	if assert.NotNil(t, receiveOutput) {
-		assert.Len(t, receiveOutput.Messages, 1)
+	if !assert.NotNil(t, receiveOutput) {
+		return
+	}
+	if assert.Len(t, receiveOutput.Messages, 1) {
 		assert.Contains(t, *receiveOutput.Messages[0].Body, "Hello there.")
 	}
 }

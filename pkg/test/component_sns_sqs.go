@@ -93,7 +93,7 @@ func snsSqsHealthcheck(name string) func() error {
 
 		log.Println("sqs healthy")
 
-		err = subscriptionHealthcheck(name)
+		err = subscribePublishReceiveHealthcheck(name)
 
 		if err != nil {
 			return err
@@ -105,7 +105,7 @@ func snsSqsHealthcheck(name string) func() error {
 	}
 }
 
-func subscriptionHealthcheck(name string) error {
+func subscribePublishReceiveHealthcheck(name string) error {
 	var (
 		snsClient = ProvideSnsClient(name)
 		sqsClient = ProvideSqsClient(name)
@@ -149,6 +149,23 @@ func subscriptionHealthcheck(name string) error {
 		Protocol: aws.String("sqs"),
 		Endpoint: queue.QueueUrl,
 		TopicArn: topic.TopicArn,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	_, err = snsClient.Publish(&sns.PublishInput{
+		Message:  aws.String("checking health"),
+		TopicArn: topic.TopicArn,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	_, err = sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
+		QueueUrl: queue.QueueUrl,
 	})
 
 	if err != nil {
