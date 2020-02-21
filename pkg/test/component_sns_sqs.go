@@ -64,6 +64,14 @@ func doRunSnsSqs(name string, configMap configInput) {
 		OnDestroy:   onDestroy,
 	})
 
+	c, err := dockerPool.Client.InspectContainer("gosoline_test_sns_sqs")
+
+	if err != nil {
+		logErr(err, "could not inspect container")
+	}
+
+	gateway := c.NetworkSettings.Networks["bridge"].Gateway
+	localConfig.Host = gateway
 }
 
 func snsSqsHealthcheck() error {
