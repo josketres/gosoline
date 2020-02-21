@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
 
 type snsSqsConfig struct {
@@ -87,6 +88,8 @@ func snsSqsHealthcheck() error {
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(20 * time.Second)
 
 	if !ready {
 		return errors.New("localstack services not ready yet")
