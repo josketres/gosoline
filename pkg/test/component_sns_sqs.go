@@ -70,8 +70,11 @@ func doRunSnsSqs(name string, configMap configInput) {
 		logErr(err, "could not inspect container")
 	}
 
-	gateway := c.NetworkSettings.Networks["bridge"].Gateway
-	localConfig.Host = gateway
+	address := c.NetworkSettings.Networks["bridge"].IPAddress
+
+	fmt.Println("using address", address)
+
+	localConfig.Host = address
 }
 
 func snsSqsHealthcheck() error {
