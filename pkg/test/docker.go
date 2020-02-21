@@ -49,10 +49,10 @@ func runContainer(name string, config ContainerConfig) {
 		logErr(err, fmt.Sprintf("could not start %s container", name))
 	}
 
-	err = resource.Expire(60 * 60 * 10)
+	err = resource.Expire(60 * 60)
 
 	if err != nil {
-		logErr(err, "Could not expire resource")
+		logErr(err, fmt.Sprintf("could not expire container %s", name))
 	}
 
 	err = dockerPool.Retry(config.HealthCheck)

@@ -85,10 +85,7 @@ func doRunSnsSqs(name string, configMap configInput) {
 		HealthCheck: func() error {
 			c, _ := dockerPool.Client.InspectContainer("gosoline_test_sns_sqs")
 
-			funk.ForEach(c.NetworkSettings.Networks, func(_ string, elem docker.ContainerNetwork) {
-				localConfig.Host = elem.IPAddress
-				log.Println(fmt.Sprintf("set Host to %s", localConfig.Host))
-			})
+			log.Println("networks: ", funk.Keys(c.NetworkSettings.Networks))
 
 			err := snsHealthcheck(name)()
 
