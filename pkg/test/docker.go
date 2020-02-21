@@ -49,7 +49,7 @@ func runContainer(name string, config ContainerConfig) {
 		logErr(err, fmt.Sprintf("could not start %s container", name))
 	}
 
-	err = resource.Expire(60 * 60)
+	err = resource.Expire(60 * 60 * 10)
 
 	if err != nil {
 		logErr(err, "Could not expire resource")
