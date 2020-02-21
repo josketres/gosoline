@@ -30,3 +30,7 @@ jobs:
           sudo sysctl -p
           go test -p 1 --tags=integration  ./test/component_sns_test.go
           go test -p 1 --tags=integration  ./test/component_sns_test.go
+          go test -p 1 --tags=integration  ./test/component_sns_test.go
+          go test -p 1 --tags=integration  ./test/component_sns_test.go
+          go test -p 1 --tags=integration  ./test/component_sns_test.go
+          go test -p 1 --tags=integration  ./test/component_sns_test.go
