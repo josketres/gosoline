@@ -148,7 +148,7 @@ func subscriptionHealthcheck(name string) error {
 	_, err = snsClient.Subscribe(&sns.SubscribeInput{
 		Protocol: aws.String("sqs"),
 		Endpoint: queue.QueueUrl,
-		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName)),
+		TopicArn: topic.TopicArn,
 	})
 
 	if err != nil {
