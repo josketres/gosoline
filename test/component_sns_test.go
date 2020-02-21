@@ -62,8 +62,8 @@ func Test_sns_sqs(t *testing.T) {
 	// create a topic subscription
 	subscriptionOutput, err := snsClient.Subscribe(&sns.SubscribeInput{
 		Protocol: aws.String("sqs"),
-		Endpoint: aws.String(fmt.Sprintf("http://localhost:4576/queue/%s", queueName)),
-		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName)),
+		Endpoint: createQueueOutput.QueueUrl,
+		TopicArn: createTopicOutput.TopicArn,
 	})
 
 	assert.NoError(t, err)
@@ -75,7 +75,7 @@ func Test_sns_sqs(t *testing.T) {
 	// send a message to a topic
 	publishOutput, err := snsClient.Publish(&sns.PublishInput{
 		Message:  aws.String("Hello there."),
-		TopicArn: aws.String(fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName)),
+		TopicArn: createTopicOutput.TopicArn,
 	})
 
 	assert.NoError(t, err)
@@ -88,7 +88,7 @@ func Test_sns_sqs(t *testing.T) {
 
 	// receive the message from sqs
 	receiveOutput, err := sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
-		QueueUrl: aws.String(fmt.Sprintf("http://localhost:4576/queue/%s", queueName)),
+		QueueUrl: createQueueOutput.QueueUrl,
 	})
 
 	assert.NoError(t, err)
