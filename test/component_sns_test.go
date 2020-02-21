@@ -31,8 +31,9 @@ func Test_sns_sqs(t *testing.T) {
 	topicsOutput, err := snsClient.ListTopics(&sns.ListTopicsInput{})
 
 	assert.NoError(t, err)
-	assert.NotNil(t, topicsOutput)
-	assert.Len(t, topicsOutput.Topics, 0)
+	if assert.NotNil(t, topicsOutput) {
+		assert.Len(t, topicsOutput.Topics, 0)
+	}
 
 	sqsClient := pkgTest.ProvideSqsClient("sns_sqs")
 
@@ -43,8 +44,9 @@ func Test_sns_sqs(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, createQueueOutput)
-	assert.NotNil(t, createQueueOutput.QueueUrl)
-	assert.Equal(t, *createQueueOutput.QueueUrl, fmt.Sprintf("http://localhost:4576/queue/%s", queueName))
+	if assert.NotNil(t, createQueueOutput.QueueUrl) {
+		assert.Equal(t, *createQueueOutput.QueueUrl, fmt.Sprintf("http://localhost:4576/queue/%s", queueName))
+	}
 
 	// create a topic
 	createTopicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
@@ -53,8 +55,9 @@ func Test_sns_sqs(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, createTopicOutput)
-	assert.NotNil(t, createTopicOutput.TopicArn)
-	assert.Equal(t, *createTopicOutput.TopicArn, fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName))
+	if assert.NotNil(t, createTopicOutput.TopicArn) {
+		assert.Equal(t, *createTopicOutput.TopicArn, fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName))
+	}
 
 	// create a topic subscription
 	subscriptionOutput, err := snsClient.Subscribe(&sns.SubscribeInput{
@@ -65,8 +68,9 @@ func Test_sns_sqs(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, subscriptionOutput)
-	assert.NotNil(t, subscriptionOutput.SubscriptionArn)
-	assert.Contains(t, *subscriptionOutput.SubscriptionArn, fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s:", topicName))
+	if assert.NotNil(t, subscriptionOutput.SubscriptionArn) {
+		assert.Contains(t, *subscriptionOutput.SubscriptionArn, fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s:", topicName))
+	}
 
 	// send a message to a topic
 	publishOutput, err := snsClient.Publish(&sns.PublishInput{
@@ -75,8 +79,9 @@ func Test_sns_sqs(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.NotNil(t, publishOutput)
-	assert.NotNil(t, publishOutput.MessageId)
+	if assert.NotNil(t, publishOutput) {
+		assert.NotNil(t, publishOutput.MessageId)
+	}
 
 	// wait for localstack to forward the message to sqs (race condition)
 	time.Sleep(1 * time.Second)
@@ -87,7 +92,8 @@ func Test_sns_sqs(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.NotNil(t, receiveOutput)
-	assert.Len(t, receiveOutput.Messages, 1)
-	assert.Contains(t, *receiveOutput.Messages[0].Body, "Hello there.")
+	if assert.NotNil(t, receiveOutput) {
+		assert.Len(t, receiveOutput.Messages, 1)
+		assert.Contains(t, *receiveOutput.Messages[0].Body, "Hello there.")
+	}
 }
