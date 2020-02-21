@@ -47,17 +47,15 @@ func doRunSnsSqs(name string, configMap configInput) {
 	unmarshalConfig(configMap, localConfig)
 	snsSqsConfigs[name] = localConfig
 
-	services := []string{
+	services := "SERVICES=" + strings.Join([]string{
 		"sns",
 		"sqs",
-	}
-
-	envVariables := "SERVICES=" + strings.Join(services, ",")
+	}, ",")
 
 	runContainer("gosoline_test_sns_sqs", ContainerConfig{
 		Repository: "localstack/localstack",
 		Tag:        "0.10.7",
-		Env:        []string{envVariables},
+		Env:        []string{services, "DEBUG=1"},
 		PortBindings: PortBinding{
 			"4575/tcp": fmt.Sprint(localConfig.SnsPort),
 			"4576/tcp": fmt.Sprint(localConfig.SqsPort),
