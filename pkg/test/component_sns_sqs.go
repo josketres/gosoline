@@ -8,9 +8,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/ory/dockertest/docker"
 	"log"
+	"net"
 	"regexp"
 	"strings"
-	"sync"
+	"time"
 )
 
 type snsSqsConfig struct {
@@ -21,66 +22,41 @@ type snsSqsConfig struct {
 
 var snsSqsConfigs map[string]*snsSqsConfig
 
-var (
-	snsClients map[string]*sns.SNS
-	snsLck     sync.Mutex
-)
-
-var (
-	sqsClients map[string]*sqs.SQS
-	sqsLck     sync.Mutex
-)
+var clients = simpleCache{}
 
 func init() {
 	snsSqsConfigs = map[string]*snsSqsConfig{}
-	snsClients = map[string]*sns.SNS{}
-	sqsClients = map[string]*sqs.SQS{}
+	clients = simpleCache{}
+}
+
+// do we really need this ?
+func onDestroy() {
+	snsSqsConfigs = map[string]*snsSqsConfig{}
+	clients = simpleCache{}
 }
 
 func ProvideSnsClient(name string) *sns.SNS {
-	snsLck.Lock()
-	defer snsLck.Unlock()
+	return clients.New("sns-"+name, func() interface{} {
+		sess, err := getSession(snsSqsConfigs[name].Host, snsSqsConfigs[name].SnsPort)
 
-	_, ok := snsClients[name]
-	if ok {
-		return snsClients[name]
-	}
+		if err != nil {
+			logErr(err, "could not create sns client: %s")
+		}
 
-	sess, err := getSession(snsSqsConfigs[name].Host, snsSqsConfigs[name].SnsPort)
-
-	if err != nil {
-		logErr(err, "could not create sns client: %s")
-	}
-
-	snsClients[name] = sns.New(sess)
-
-	return snsClients[name]
+		return sns.New(sess)
+	}).(*sns.SNS)
 }
 
 func ProvideSqsClient(name string) *sqs.SQS {
-	sqsLck.Lock()
-	defer sqsLck.Unlock()
+	return clients.New("sqs-"+name, func() interface{} {
+		sess, err := getSession(snsSqsConfigs[name].Host, snsSqsConfigs[name].SqsPort)
 
-	_, ok := sqsClients[name]
-	if ok {
-		return sqsClients[name]
-	}
+		if err != nil {
+			logErr(err, "could not create sqs client: %s")
+		}
 
-	sess, err := getSession(snsSqsConfigs[name].Host, snsSqsConfigs[name].SqsPort)
-
-	if err != nil {
-		logErr(err, "could not create sqs client: %s")
-	}
-
-	sqsClients[name] = sqs.New(sess)
-
-	return sqsClients[name]
-}
-
-func onDestroy() {
-	snsSqsConfigs = map[string]*snsSqsConfig{}
-	snsClients = map[string]*sns.SNS{}
-	sqsClients = map[string]*sqs.SQS{}
+		return sqs.New(sess)
+	}).(*sqs.SQS)
 }
 
 func runSnsSqs(name string, config configInput) {
@@ -121,9 +97,10 @@ func doRunSnsSqs(name string, configMap configInput) {
 
 	address := c.NetworkSettings.Networks["bridge"].IPAddress
 
-	fmt.Println("using container address", address)
-
-	localConfig.Host = address
+	if isReachable(address + ":4575") {
+		fmt.Println("overriding host", address)
+		snsSqsConfigs[name].Host = address
+	}
 }
 
 func snsSqsHealthcheck() error {
@@ -151,4 +128,20 @@ func snsSqsHealthcheck() error {
 	}
 
 	return nil
+}
+
+func isReachable(address string) bool {
+	timeout := time.Duration(5) * time.Second
+	conn, err := net.DialTimeout("tcp", address, timeout)
+
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	fmt.Println("connection established between localhost and", address)
+	fmt.Println("remote address", conn.RemoteAddr().String())
+	fmt.Println("local address", conn.LocalAddr().String())
+
+	return true
 }
