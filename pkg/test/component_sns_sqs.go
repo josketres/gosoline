@@ -133,6 +133,7 @@ func snsSqsHealthcheck() error {
 func isReachable(address string) bool {
 	timeout := time.Duration(5) * time.Second
 	conn, err := net.DialTimeout("tcp", address, timeout)
+	defer conn.Close()
 
 	if err != nil {
 		fmt.Println(err)

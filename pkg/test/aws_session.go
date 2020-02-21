@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"log"
+	"net/http"
+	"time"
 )
 
 var sessions = simpleCache{}
@@ -24,10 +26,16 @@ func getSession(host string, port int) (*session.Session, error) {
 func createNewSession(endpoint string) interface{} {
 	log.Println("creating new aws session for endpoint : " + endpoint)
 
+	httpTimeout := time.Minute
+
 	config := &aws.Config{
-		MaxRetries: mdl.Int(5),
-		Region:     aws.String(endpoints.EuCentral1RegionID),
-		Endpoint:   aws.String(endpoint),
+		CredentialsChainVerboseErrors: aws.Bool(true),
+		MaxRetries:                    mdl.Int(30),
+		Region:                        aws.String(endpoints.EuCentral1RegionID),
+		Endpoint:                      aws.String(endpoint),
+		HTTPClient: &http.Client{
+			Timeout: httpTimeout,
+		},
 	}
 
 	newSession, err := session.NewSession(config)
