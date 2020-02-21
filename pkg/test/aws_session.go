@@ -28,8 +28,6 @@ func createNewSession(endpoint string) interface{} {
 
 	httpTimeout := time.Minute
 
-	logLevel := aws.LogDebug
-
 	config := &aws.Config{
 		CredentialsChainVerboseErrors: aws.Bool(true),
 		MaxRetries:                    mdl.Int(30),
@@ -38,7 +36,7 @@ func createNewSession(endpoint string) interface{} {
 		HTTPClient: &http.Client{
 			Timeout: httpTimeout,
 		},
-		LogLevel: &logLevel,
+		LogLevel: aws.LogLevel(aws.LogDebug | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors | aws.LogDebugWithHTTPBody),
 	}
 
 	newSession, err := session.NewSession(config)
