@@ -13,6 +13,10 @@ import (
 
 var sessions = simpleCache{}
 
+var httpClient = &http.Client{
+	Timeout: time.Minute,
+}
+
 func getSession(host string, port int) (*session.Session, error) {
 	endpoint := fmt.Sprintf("http://%s:%d", host, port)
 
@@ -26,17 +30,13 @@ func getSession(host string, port int) (*session.Session, error) {
 func createNewSession(endpoint string) interface{} {
 	log.Println("creating new aws session for endpoint : " + endpoint)
 
-	httpTimeout := time.Minute
-
 	config := &aws.Config{
 		CredentialsChainVerboseErrors: aws.Bool(true),
 		MaxRetries:                    mdl.Int(30),
 		Region:                        aws.String(endpoints.EuCentral1RegionID),
 		Endpoint:                      aws.String(endpoint),
-		HTTPClient: &http.Client{
-			Timeout: httpTimeout,
-		},
-		LogLevel: aws.LogLevel(aws.LogDebug | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors | aws.LogDebugWithHTTPBody),
+		HTTPClient:                    httpClient,
+		LogLevel:                      aws.LogLevel(aws.LogDebug | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors | aws.LogDebugWithHTTPBody),
 	}
 
 	newSession, err := session.NewSession(config)
