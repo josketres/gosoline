@@ -9,9 +9,20 @@ import (
 	"log"
 )
 
+var sessions = simpleCache{}
+
 func getSession(host string, port int) (*session.Session, error) {
 	endpoint := fmt.Sprintf("http://%s:%d", host, port)
-	log.Println("endpoint is: " + endpoint)
+
+	s := sessions.New(endpoint, func() interface{} {
+		return createNewSession(endpoint)
+	})
+
+	return s.(*session.Session), nil
+}
+
+func createNewSession(endpoint string) interface{} {
+	log.Println("creating new session for endpoint : " + endpoint)
 
 	config := &aws.Config{
 		MaxRetries: mdl.Int(5),
@@ -19,5 +30,11 @@ func getSession(host string, port int) (*session.Session, error) {
 		Endpoint:   aws.String(endpoint),
 	}
 
-	return session.NewSession(config)
+	newSession, err := session.NewSession(config)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return newSession
 }
