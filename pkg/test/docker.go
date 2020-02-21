@@ -1,11 +1,13 @@
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/ory/dockertest"
 	"github.com/ory/dockertest/docker"
 	"log"
 	"os"
+	"os/exec"
 )
 
 type PortBinding map[string]string
@@ -63,17 +65,33 @@ func runContainer(name string, config ContainerConfig) {
 		logErr(err, fmt.Sprintf("could not bring up %s container", name))
 	}
 
+	debugNetwork()
+
 	dockerResources = append(dockerResources, resource)
 	configs = append(configs, &config)
 }
 
+func debugNetwork() {
+	out := bytes.NewBufferString("")
+	cmd := exec.Command("iptables", "-t", "nat", "-L", "-n")
+
+	cmd.Stdout = out
+	err := cmd.Run()
+
+	if err != nil {
+		logErr(err, "error debuging iptables")
+	}
+
+	fmt.Println(out)
+}
+
 func printLogs(resource *dockertest.Resource) {
 	err := dockerPool.Client.Logs(docker.LogsOptions{
-		Container: resource.Container.ID,
+		Container:    resource.Container.ID,
 		OutputStream: os.Stdout,
-		ErrorStream: os.Stderr,
-		Stdout:    true,
-		Stderr:    true,
+		ErrorStream:  os.Stderr,
+		Stdout:       true,
+		Stderr:       true,
 	})
 
 	if err != nil {
