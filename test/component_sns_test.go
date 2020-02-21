@@ -28,42 +28,38 @@ func Test_sns_sqs(t *testing.T) {
 	topicName := "my-topic"
 
 	snsClient := pkgTest.ProvideSnsClient("sns_sqs")
-	topicsOutput, err := snsClient.ListTopics(&sns.ListTopicsInput{})
-
-	assert.NoError(t, err)
-	if assert.NotNil(t, topicsOutput) {
-		assert.Len(t, topicsOutput.Topics, 0)
-	}
-
 	sqsClient := pkgTest.ProvideSqsClient("sns_sqs")
 
-	// create a queue
-	createQueueOutput, err := sqsClient.CreateQueue(&sqs.CreateQueueInput{
-		QueueName: aws.String(queueName),
-	})
-
-	assert.NoError(t, err)
-	assert.NotNil(t, createQueueOutput)
-	if assert.NotNil(t, createQueueOutput.QueueUrl) {
-		assert.Equal(t, *createQueueOutput.QueueUrl, fmt.Sprintf("http://localhost:4576/queue/%s", queueName))
-	}
-
 	// create a topic
-	createTopicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
+	topic, err := snsClient.CreateTopic(&sns.CreateTopicInput{
 		Name: aws.String(topicName),
 	})
 
 	assert.NoError(t, err)
-	assert.NotNil(t, createTopicOutput)
-	if assert.NotNil(t, createTopicOutput.TopicArn) {
-		assert.Equal(t, *createTopicOutput.TopicArn, fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName))
+	assert.NotNil(t, topic)
+	if assert.NotNil(t, topic.TopicArn) {
+		assert.Equal(t, *topic.TopicArn, fmt.Sprintf("arn:aws:sns:us-east-1:000000000000:%s", topicName))
 	}
+
+	// create a queue
+	queue, err := sqsClient.CreateQueue(&sqs.CreateQueueInput{
+		QueueName: aws.String(queueName),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, queue)
+	if assert.NotNil(t, queue.QueueUrl) {
+		assert.Equal(t, *queue.QueueUrl, fmt.Sprintf("http://localhost:4576/queue/%s", queueName))
+	}
+
+	// wait for queue to be created
+	time.Sleep(1 * time.Second)
 
 	// create a topic subscription
 	subscriptionOutput, err := snsClient.Subscribe(&sns.SubscribeInput{
 		Protocol: aws.String("sqs"),
-		Endpoint: createQueueOutput.QueueUrl,
-		TopicArn: createTopicOutput.TopicArn,
+		Endpoint: queue.QueueUrl,
+		TopicArn: topic.TopicArn,
 	})
 
 	assert.NoError(t, err)
@@ -75,7 +71,7 @@ func Test_sns_sqs(t *testing.T) {
 	// send a message to a topic
 	publishOutput, err := snsClient.Publish(&sns.PublishInput{
 		Message:  aws.String("Hello there."),
-		TopicArn: createTopicOutput.TopicArn,
+		TopicArn: topic.TopicArn,
 	})
 
 	assert.NoError(t, err)
@@ -83,12 +79,12 @@ func Test_sns_sqs(t *testing.T) {
 		assert.NotNil(t, publishOutput.MessageId)
 	}
 
-	// wait for localstack to forward the message to sqs (race condition)
+	// wait for localstack to forward the message to sqs
 	time.Sleep(1 * time.Second)
 
 	// receive the message from sqs
 	receiveOutput, err := sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
-		QueueUrl: createQueueOutput.QueueUrl,
+		QueueUrl: queue.QueueUrl,
 	})
 
 	assert.NoError(t, err)
